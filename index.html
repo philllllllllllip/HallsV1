@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Halls - VR Experience</title>
+    <title>VR Art Studio</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #000000;
+            background-color: #111;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         #overlay {
@@ -22,29 +22,36 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: #050505;
+            background: radial-gradient(circle, #2c2c2c 0%, #111 100%);
             color: white;
             z-index: 10;
             transition: opacity 0.5s ease;
         }
         h1 { 
             font-size: 2.5rem;
-            margin-bottom: 20px; 
-            letter-spacing: 12px;
+            margin-bottom: 10px; 
+            letter-spacing: 4px;
+            font-weight: 300;
+        }
+        p {
+            color: #aaa;
+            margin-bottom: 30px;
         }
         #vr-button {
-            padding: 16px 36px;
+            padding: 16px 40px;
             font-size: 1rem;
             font-weight: 600;
             background-color: transparent;
             color: #fff;
             border: 2px solid #ffffff;
             cursor: pointer;
-            letter-spacing: 3px;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
         }
         #vr-button:hover {
             background-color: #ffffff;
             color: #000000;
+            box-shadow: 0 0 20px rgba(255,255,255,0.3);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -52,35 +59,28 @@
 <body>
 
     <div id="overlay">
-        <h1>H A L L S</h1>
-        <button id="vr-button">START VR</button>
+        <h1>V R  A R T  S T U D I O</h1>
+        <p>Pick up your brush, select a color, and paint.</p>
+        <button id="vr-button">ENTER STUDIO</button>
     </div>
 
     <script>
-        // --- Core Engine Setup ---
+        // --- Core Scene & Lighting Setup ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        // Heavy realistic fog to swallow light maps into total pitch darkness
-        scene.fog = new THREE.FogExp2(0x000000, 0.35);
+        scene.background = new THREE.Color(0x1a1512); // Warm ambient atmosphere
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 100);
-        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.6, 0); // Default head height
+
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
-        
-        // HDR/ACES Tone mapping configuration to handle intense realistic emissive glows
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 0.8; 
+        renderer.toneMappingExposure = 1.0;
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // --- VR Tracked Player Rig ---
-        const userRig = new THREE.Group();
-        userRig.add(camera);
-        scene.add(userRig);
-
-        // --- WebXR Prompt System ---
+        // --- WebXR Session Management ---
         const vrButton = document.getElementById('vr-button');
         const overlay = document.getElementById('overlay');
 
@@ -95,285 +95,263 @@
                             setTimeout(() => overlay.style.display = 'none', 500);
                         });
                     });
-                } else { vrButton.textContent = 'HEADSET NOT FOUND'; }
+                } else { vrButton.textContent = 'VR HEADSET NOT DETECTED'; }
             });
         }
 
-        // --- Texture Processing (Using Your Provided Assets) ---
-        const textureLoader = new THREE.TextureLoader();
-        const wallTex = textureLoader.load('image_89e9a5.jpg');       // Your clean wall asset
-        const floorTex = textureLoader.load('image_89e6fe.jpg');      // Your light grey floorboards
-        const carpetTex = textureLoader.load('image_89e6e1.jpg');     // Your alternate carpet asset
-        const roofTex = textureLoader.load('https://m.media-amazon.com/images/I/81hWe0R+71L._AC_UL320_.jpg'); // Amazon roof tile
+        // --- Procedural Texture Generation for Realism ---
+        function createWoodTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#8B5A2B'; ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = '#5C3A21';
+            for (let i = 0; i < 500; i++) {
+                ctx.fillRect(Math.random() * 512, 0, Math.random() * 2 + 1, 512);
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
 
-        [wallTex, floorTex, carpetTex, roofTex].forEach(t => {
-            t.wrapS = THREE.RepeatWrapping;
-            t.wrapT = THREE.RepeatWrapping;
-            t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        });
-        wallTex.repeat.set(2, 1);
-        floorTex.repeat.set(1, 4);
-        carpetTex.repeat.set(1, 4);
-        roofTex.repeat.set(2, 4);
+        function createContextures() {
+            const wood = createWoodTexture();
+            wood.wrapS = THREE.RepeatWrapping; wood.wrapT = THREE.RepeatWrapping;
+            return { wood };
+        }
+        const textures = createContextures();
 
-        // --- Realistic Matte Materials ---
-        const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.6, metalness: 0.02 });
-        const pillarMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 }); 
-        const roofMaterial = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.7 });
-        const floorMaterial = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.5 });
-        const carpetMaterial = new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 });
-        const fixtureMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.7 });
-        
-        // High Emissive values create a realistic camera flare/glow under ACES Filmic mapping
-        const glowGlassMat = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff, 
-            emissive: 0xffffff, 
-            emissiveIntensity: 6.0,
-            roughness: 0.1 
-        });
-
-        // --- Pitch Dark Environment Baseline ---
-        const ambientLight = new THREE.AmbientLight(0x000000, 0.0); // No ambient light for pure blackness
+        // --- Studio Architecture & Lighting Layout ---
+        // Soft Warm Studio Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
-        // --- Interactive 3D Flashlight Logic ---
-        const flashlight = new THREE.SpotLight(0xfffbe6, 18, 20, Math.PI / 6, 0.5, 1.5);
-        flashlight.castShadow = false; // Disabled for mobile VR performance
-        scene.add(flashlight);
-        scene.add(flashlight.target);
+        const studioLight = new THREE.DirectionalLight(0xfff3e0, 1.2);
+        studioLight.position.set(5, 8, 2);
+        scene.add(studioLight);
 
-        // Physical flashlight cylinder mesh
-        const flashGeo = new THREE.CylinderGeometry(0.02, 0.025, 0.2);
-        flashGeo.rotateX(Math.PI / 2);
-        const flashMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
-        const flashMesh = new THREE.Mesh(flashGeo, flashMat);
+        // Room Shell (Walls, Floor, Roof)
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xefefef, roughness: 0.8 });
+        const floorMat = new THREE.MeshStandardMaterial({ map: textures.wood, roughness: 0.4 });
+        floorMat.map.repeat.set(4, 4);
+        const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
 
-        // --- VR Arms & Hands Tracking Infrastructure ---
-        const controller1 = renderer.xr.getController(0); // Left Hand
-        const controller2 = renderer.xr.getController(1); // Right Hand
-        userRig.add(controller1);
-        userRig.add(controller2);
+        const room = new THREE.Group();
+        const floorGeo = new THREE.PlaneGeometry(10, 10);
+        const floor = new THREE.Mesh(floorGeo, floorMat); floor.rotation.x = -Math.PI / 2; room.add(floor);
+        const roof = new THREE.Mesh(floorGeo, roofMat); roof.position.y = 4; roof.rotation.x = Math.PI / 2; room.add(roof);
 
-        // Pale clean skin / suit textures matching the liminal vibe
-        const limbMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.6 });
-        
-        // Build Geometric Arms/Hands
-        function attachArm(controller, isRightHand) {
-            const handMesh = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.12), limbMaterial);
-            controller.add(handMesh);
+        // Back Wall
+        const wallGeo = new THREE.PlaneGeometry(10, 4);
+        const backWall = new THREE.Mesh(wallGeo, wallMat); backWall.position.set(0, 2, -5); room.add(backWall);
+        // Left & Right Walls
+        const leftWall = new THREE.Mesh(wallGeo, wallMat); leftWall.position.set(-5, 2, 0); leftWall.rotation.y = Math.PI / 2; room.add(leftWall);
+        const rightWall = new THREE.Mesh(wallGeo, wallMat); rightWall.position.set(5, 2, 0); rightWall.rotation.y = -Math.PI / 2; room.add(rightWall);
+        scene.add(room);
 
-            // Forearm mesh extending back down your real-world arm space
-            const forearmGeo = new THREE.CylinderGeometry(0.04, 0.045, 0.45);
-            forearmGeo.rotateX(Math.PI / 2);
-            const forearmMesh = new THREE.Mesh(forearmGeo, limbMaterial);
-            forearmMesh.position.set(0, -0.02, 0.22); // Extends back towards player body
-            controller.add(forearmMesh);
+        // --- Dynamic Painting Paper Construction ---
+        const drawCanvas = document.createElement('canvas');
+        drawCanvas.width = 1024; drawCanvas.height = 1024;
+        const drawCtx = drawCanvas.getContext('2d');
+        drawCtx.fillStyle = '#ffffff'; // Clean white sheet
+        drawCtx.fillRect(0, 0, 1024, 1024);
 
-            if (isRightHand) {
-                // Attach the flashlight physically to your right hand
-                controller.add(flashMesh);
+        const canvasTexture = new THREE.CanvasTexture(drawCanvas);
+        const canvasMaterial = new THREE.MeshStandardMaterial({ map: canvasTexture, roughness: 0.95 });
+
+        // --- Building the Easel & Art Supplies Table ---
+        const easelGroup = new THREE.Group();
+        easelGroup.position.set(0, 0, -1.5); // Placed comfortably in front of player spawn
+
+        // Wooden Framing Components
+        const easelMat = new THREE.MeshStandardMaterial({ map: textures.wood, roughness: 0.6 });
+        const legGeo = new THREE.BoxGeometry(0.06, 2.2, 0.06);
+        const leftLeg = new THREE.Mesh(legGeo, easelMat); leftLeg.position.set(-0.4, 1.1, 0); leftLeg.rotation.z = -0.1;
+        const rightLeg = new THREE.Mesh(legGeo, easelMat); rightLeg.position.set(0.4, 1.1, 0); rightLeg.rotation.z = 0.1;
+        const backLeg = new THREE.Mesh(legGeo, easelMat); backLeg.position.set(0, 1.1, -0.4); backLeg.rotation.x = -0.2;
+        easelGroup.add(leftLeg, rightLeg, backLeg);
+
+        // The drawing board supporting the paper
+        const boardGeo = new THREE.BoxGeometry(1.2, 0.9, 0.04);
+        const board = new THREE.Mesh(boardGeo, easelMat);
+        board.position.set(0, 1.4, -0.05);
+        board.rotation.x = -0.05; // Slanted slightly back like a real easel
+        easelGroup.add(board);
+
+        // The actual Paper Sheet you draw on
+        const paperGeo = new THREE.PlaneGeometry(1.1, 0.8);
+        const paperMesh = new THREE.Mesh(paperGeo, canvasMaterial);
+        paperMesh.position.set(0, 1.4, -0.028);
+        paperMesh.rotation.x = -0.05;
+        easelGroup.add(paperMesh);
+        scene.add(easelGroup);
+
+        // Supply Table Construction
+        const tableGroup = new THREE.Group();
+        tableGroup.position.set(0.8, 0, -1.2); // Positioned conveniently to the right
+        const topGeo = new THREE.BoxGeometry(0.8, 0.05, 1.2);
+        const tableTop = new THREE.Mesh(topGeo, easelMat); tableTop.position.y = 0.75; tableGroup.add(tableTop);
+        const legG = new THREE.BoxGeometry(0.05, 0.75, 0.05);
+        for(let x of [-0.35, 0.35]) {
+            for(let z of [-0.5, 0.5]) {
+                const leg = new THREE.Mesh(legG, easelMat); leg.position.set(x, 0.375, z); tableGroup.add(leg);
             }
         }
-        attachArm(controller1, false);
-        attachArm(controller2, true);
+        scene.add(tableGroup);
 
-        // --- Architectural Corridor Generation ---
-        const segmentLength = 10;
-        const totalSegments = 8; 
-        const hallwayWidth = 2.6;
-        const hallwayHeight = 3.0;
-        const segments = [];
+        // --- Interactive Palettes & Brush Tools Configuration ---
+        const paintOptions = [
+            { color: 0xff0000, hex: '#ff0000', pos: new THREE.Vector3(-0.2, 0.79, -0.3) }, // Red
+            { color: 0x00ff00, hex: '#00ff00', pos: new THREE.Vector3(0.0, 0.79, -0.3) },  // Green
+            { color: 0x0000ff, hex: '#0000ff', pos: new THREE.Vector3(0.2, 0.79, -0.3) },  // Blue
+            { color: 0xffcc00, hex: '#ffcc00', pos: new THREE.Vector3(-0.2, 0.79, -0.1) }, // Yellow
+            { color: 0x000000, hex: '#000000', pos: new THREE.Vector3(0.0, 0.79, -0.1) },  // Black
+            { color: 0xffffff, hex: '#ffffff', pos: new THREE.Vector3(0.2, 0.79, -0.1) }   // White
+        ];
 
-        function createHallwaySegment(zOffset) {
-            const segment = new THREE.Group();
+        const targetTargets = []; // Collision targets array
 
-            // Left & Right Walls
-            const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
-            leftWall.position.set(-hallwayWidth/2, hallwayHeight/2, 0);
-            leftWall.rotation.y = Math.PI / 2;
-            segment.add(leftWall);
+        paintOptions.forEach(opt => {
+            const trayGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.02, 16);
+            const trayMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+            const tray = new THREE.Mesh(trayGeo, trayMat);
+            tray.position.copy(opt.pos);
+            tableGroup.add(tray);
 
-            const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
-            rightWall.position.set(hallwayWidth/2, hallwayHeight/2, 0);
-            rightWall.rotation.y = -Math.PI / 2;
-            segment.add(rightWall);
+            const fluidGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.015, 16);
+            const fluidMat = new THREE.MeshStandardMaterial({ color: opt.color, roughness: 0.2 });
+            const fluid = new THREE.Mesh(fluidGeo, fluidMat);
+            fluid.position.copy(opt.pos).add(new THREE.Vector3(0, 0.005, 0));
+            fluid.userData = { type: 'color', val: opt.hex };
+            tableGroup.add(fluid);
+            targetTargets.push(fluid);
+        });
 
-            // Structural Pillars protruding from the architecture
-            const pillarGeo = new THREE.BoxGeometry(0.2, hallwayHeight, 0.4);
-            [-segmentLength/2, segmentLength/2].forEach(posZ => {
-                const lp = new THREE.Mesh(pillarGeo, pillarMaterial);
-                lp.position.set(-hallwayWidth/2 + 0.1, hallwayHeight/2, posZ);
-                const rp = new THREE.Mesh(pillarGeo, pillarMaterial);
-                rp.position.set(hallwayWidth/2 - 0.1, hallwayHeight/2, posZ);
-                segment.add(lp, rp);
-            });
+        // Brush Size Selector Pots
+        const sizeOptions = [
+            { radius: 6, label: 'Small', pos: new THREE.Vector3(-0.15, 0.79, 0.2) },
+            { radius: 16, label: 'Medium', pos: new THREE.Vector3(0.0, 0.79, 0.2) },
+            { radius: 32, label: 'Large', pos: new THREE.Vector3(0.15, 0.79, 0.2) }
+        ];
 
-            // Ceiling Grid
-            const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), roofMaterial);
-            ceiling.position.set(0, hallwayHeight, 0);
-            ceiling.rotation.x = Math.PI / 2;
-            segment.add(ceiling);
+        sizeOptions.forEach(opt => {
+            const potGeo = new THREE.BoxGeometry(0.08, 0.04, 0.08);
+            const potMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.4 });
+            const pot = new THREE.Mesh(potGeo, potMat);
+            pot.position.copy(opt.pos);
+            pot.userData = { type: 'size', val: opt.radius };
+            tableGroup.add(pot);
+            targetTargets.push(pot);
 
-            // Floorboards baseline
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), floorMaterial);
-            floor.position.set(0, 0, 0);
-            floor.rotation.x = -Math.PI / 2;
-            segment.add(floor);
+            // Miniature display labels inside pots
+            const dotGeo = new THREE.CylinderGeometry(opt.radius/1000 + 0.002, opt.radius/1000 + 0.002, 0.042, 8);
+            const dotMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            const dot = new THREE.Mesh(dotGeo, dotMat);
+            dot.position.copy(opt.pos);
+            tableGroup.add(dot);
+        });
 
-            // Realistic Linear Office Fluorescent Box
-            const fixture = new THREE.Group();
-            const casing = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.05, 3.0), fixtureMat);
-            const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 2.9), glowGlassMat);
-            casing.position.set(0, hallwayHeight - 0.025, 0);
-            bulb.position.set(0, hallwayHeight - 0.05, 0);
-            fixture.add(casing, bulb);
+        // --- Active Painting System State ---
+        let currentColor = '#ff0000';
+        let currentSize = 16;
+        let isDrawing = false;
+        let lastX = null; let lastY = null;
 
-            // Dynamic Point Light matching bulb emission
-            const overheadLight = new THREE.PointLight(0xfff5e6, 3.5, 9, 1.8);
-            overheadLight.position.set(0, hallwayHeight - 0.1, 0);
-            fixture.add(overheadLight);
-            segment.add(fixture);
+        // --- VR Controllers & Physical Brushes Tracking ---
+        const raycaster = new THREE.Raycaster();
+        const controllerRight = renderer.xr.getController(1); // Right hand tool hand
+        scene.add(controllerRight);
 
-            // Metadata handles for rendering loops
-            segment.userData = {
-                floorMesh: floor,
-                overheadLight: overheadLight,
-                bulbMesh: bulb,
-                flickerTimer: Math.random() * 6,
-                isFlickering: false
-            };
+        // Visual Pointer Ray Line
+        const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-3)]);
+        const laserMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+        const laser = new THREE.Line(laserGeo, laserMat);
+        controllerRight.add(laser);
 
-            segment.position.z = zOffset;
-            return segment;
-        }
+        // Model physical Artist Brush Mesh attachment
+        const brushHandleGeo = new THREE.CylinderGeometry(0.008, 0.005, 0.25);
+        brushHandleGeo.rotateX(Math.PI / 2);
+        const brushHandle = new THREE.Mesh(brushHandleGeo, easelMat);
+        brushHandle.position.set(0, 0, -0.08);
+        controllerRight.add(brushHandle);
 
-        // Generate Starting Corridor Map
-        for (let i = 0; i < totalSegments; i++) {
-            const seg = createHallwaySegment(-i * segmentLength);
-            scene.add(seg);
-            segments.push(seg);
-        }
+        const tipGeo = new THREE.CylinderGeometry(0.001, 0.008, 0.03);
+        tipGeo.rotateX(Math.PI / 2);
+        const tipMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const brushTip = new THREE.Mesh(tipGeo, tipMat);
+        brushTip.position.set(0, 0, -0.21); // Extends straight out to act as pointer tip
+        controllerRight.add(brushTip);
 
-        // --- Precision VR Input Controller System ---
-        const moveSpeed = 1.6; 
-        const clock = new THREE.Clock();
-        let canSnapTurn = true;
+        // Standard WebXR Controller Event Binding hooks
+        controllerRight.addEventListener('selectstart', () => { isDrawing = true; });
+        controllerRight.addEventListener('selectend', () => { 
+            isDrawing = false; 
+            lastX = null; lastY = null; // Break continuous line sequence
+        });
 
-        function handleVRLocomotion(delta) {
-            const session = renderer.xr.getSession();
-            if (!session) return;
-
-            for (const source of session.inputSources) {
-                if (!source.gamepad) continue;
-                const axes = source.gamepad.axes;
-                if (axes.length < 2) continue;
-
-                const xAxis = axes[0]; 
-                const yAxis = axes[1]; 
-
-                // LEFT HAND JOYSTICK: Move & Strafe relative to Head orientation
-                if (source.handedness === 'left') {
-                    if (Math.abs(xAxis) > 0.15 || Math.abs(yAxis) > 0.15) {
-                        const direction = new THREE.Vector3();
-                        camera.getWorldDirection(direction);
-                        direction.y = 0; // Lock to flat ground
-                        direction.normalize();
-
-                        const side = new THREE.Vector3();
-                        side.crossVectors(direction, camera.up).normalize();
-
-                        userRig.position.addScaledVector(direction, -yAxis * moveSpeed * delta);
-                        userRig.position.addScaledVector(side, xAxis * moveSpeed * delta);
-                    }
-                }
-
-                // RIGHT HAND JOYSTICK: Smooth Snap Rotation
-                if (source.handedness === 'right') {
-                    if (Math.abs(xAxis) > 0.7) {
-                        if (canSnapTurn) {
-                            userRig.rotateY(xAxis > 0 ? -Math.PI / 4 : Math.PI / 4);
-                            canSnapTurn = false;
-                        }
-                    } else { canSnapTurn = true; }
-                }
-            }
-        }
-
-        // --- Spooky Fluorescent Flickering Engine ---
-        function handleFlickerSystem(delta) {
-            segments.forEach((seg) => {
-                const data = seg.userData;
-                data.flickerTimer -= delta;
-
-                if (data.flickerTimer <= 0) {
-                    data.isFlickering = Math.random() > 0.82; 
-                    data.flickerTimer = data.isFlickering ? Math.random() * 0.4 : Math.random() * 12 + 6;
-                }
-
-                if (data.isFlickering) {
-                    const seed = Math.random();
-                    if (seed > 0.8) {
-                        data.overheadLight.intensity = 5.0; // Power surge flare
-                        data.bulbMesh.material.emissiveIntensity = 6.0;
-                    } else if (seed > 0.3) {
-                        data.overheadLight.intensity = 0.1; // Voltage drop frame
-                        data.bulbMesh.material.emissiveIntensity = 0.2;
-                    } else {
-                        data.overheadLight.intensity = 0.0; // Complete dead blackout
-                        data.bulbMesh.material.emissiveIntensity = 0.0;
-                    }
-                } else {
-                    // Stable low hum radiation
-                    data.overheadLight.intensity = 2.8 + (Math.sin(Date.now() * 0.006 + seg.position.z) * 0.1);
-                    data.bulbMesh.material.emissiveIntensity = 4.0;
-                }
-            });
-        }
-
-        // --- Endless Corridor Loop Realignment ---
-        function handleInfiniteTracking() {
-            segments.forEach((seg) => {
-                if (seg.position.z > userRig.position.z + segmentLength) {
-                    let furthestZ = userRig.position.z;
-                    segments.forEach(s => { if (s.position.z < furthestZ) furthestZ = s.position.z; });
-                    
-                    seg.position.z = furthestZ - segmentLength;
-                    
-                    // Shuffle floors procedurally behind the fog wall (Light boards or Carpet tiles)
-                    const swapToCarpet = Math.random() > 0.8;
-                    seg.userData.floorMesh.material = swapToCarpet ? carpetMaterial : floorMaterial;
-                }
-            });
-        }
-
-        // --- Frame Tick Rendering Loop ---
+        // --- Game Tick Execution Frame Loop ---
         renderer.setAnimationLoop(() => {
-            const delta = clock.getDelta();
+            // Update Dynamic Laser & Raycaster Tracking Vectors
+            const tempMatrix = new THREE.Matrix4();
+            tempMatrix.identity().extractRotation(controllerRight.matrixWorld);
+            
+            raycaster.ray.origin.setFromMatrixPosition(controllerRight.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-            handleVRLocomotion(delta);
-            handleFlickerSystem(delta);
-            handleInfiniteTracking();
+            // Check if user is pointing at the Easel Canvas Plane
+            const canvasIntersects = raycaster.intersectObject(paperMesh);
 
-            // Track Flashlight position matrix directly to the right controller index
-            if (renderer.xr.isPresenting && controller2.visible) {
-                const flashWorldPos = new THREE.Vector3();
-                const flashWorldDir = new THREE.Vector3();
-                
-                flashMesh.getWorldPosition(flashWorldPos);
-                flashMesh.getWorldDirection(flashWorldDir);
+            if (canvasIntersects.length > 0) {
+                const hit = canvasIntersects[0];
+                const uv = hit.uv;
 
-                flashlight.position.copy(flashWorldPos);
-                // Invert direction matrix so it shoots perfectly out from the barrel tip
-                flashlight.target.position.copy(flashWorldPos).add(flashWorldDir.negate());
+                // Map 3D UV space coordinates to 2D HTML Canvas pixels
+                const x = uv.x * drawCanvas.width;
+                const y = (1 - uv.y) * drawCanvas.height;
+
+                // Adjust pointer line to dynamically collapse right at the contact point
+                laser.scale.z = hit.distance / 3;
+
+                if (isDrawing) {
+                    drawCtx.strokeStyle = currentColor;
+                    drawCtx.fillStyle = currentColor;
+                    drawCtx.lineCap = 'round';
+                    drawCtx.lineJoin = 'round';
+                    drawCtx.lineWidth = currentSize;
+
+                    drawCtx.beginPath();
+                    if (lastX !== null && lastY !== null) {
+                        drawCtx.moveTo(lastX, lastY);
+                        drawCtx.lineTo(x, y);
+                        drawCtx.stroke();
+                    } else {
+                        // Single point tap fallback
+                        drawCtx.arc(x, y, currentSize / 2, 0, Math.PI * 2);
+                        drawCtx.fill();
+                    }
+                    drawCtx.closePath();
+
+                    lastX = x; lastY = y;
+                    canvasTexture.needsUpdate = true; // Refresh GPU Texture Map
+                }
             } else {
-                // Desktop/No Controller Fallback: Lock light directly onto player face coordinate
-                const fallbackPos = new THREE.Vector3();
-                camera.getWorldPosition(fallbackPos);
-                flashlight.position.copy(fallbackPos);
+                // If not pointing at canvas, restore full pointer distance metric
+                laser.scale.z = 1;
+                lastX = null; lastY = null;
 
-                const fallbackDir = new THREE.Vector3();
-                camera.getWorldDirection(fallbackDir);
-                flashlight.target.position.copy(fallbackPos).add(fallbackDir);
+                // Check if user is interacting with table supply pots
+                if (isDrawing) {
+                    const supplyIntersects = raycaster.intersectObjects(targetTargets);
+                    if (supplyIntersects.length > 0) {
+                        const hitData = supplyIntersects[0].object.userData;
+                        
+                        if (hitData.type === 'color') {
+                            currentColor = hitData.val;
+                            tipMat.color.set(hitData.val); // Physically dye brush bristles
+                        } else if (hitData.type === 'size') {
+                            currentSize = hitData.val;
+                        }
+                        isDrawing = false; // Prevent click spamming continuous state flags
+                    }
+                }
             }
 
             renderer.render(scene, camera);
