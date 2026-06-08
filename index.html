@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Halls - VR Experience</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
+        }
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            z-index: 10;
+        }
+        h1 {
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/webxr/VRButton.js"></script>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>HALLS</h1>
+        <p>Put on your headset and enter VR</p>
+    </div>
+
+    <script>
+        // --- Setup Scene, Camera, and Renderer ---
+        const scene = new THREE.Scene();
+        // Add deep fog to create the "infinite darkness" effect
+        scene.background = new THREE.Color(0x0a0a0a);
+        scene.fog = new THREE.FogExp2(0x0a0a0a, 0.15);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Position camera inside the hallway
+        camera.position.set(0, 1.6, 0); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true; // Enable WebXR
+        document.body.appendChild(renderer.domElement);
+
+        // Add the official VR Button to the page
+        document.body.appendChild(VRButton.createButton(renderer));
+
+        // Hide overlay when entering VR
+        renderer.xr.addEventListener('sessionstart', () => {
+            document.getElementById('overlay').style.display = 'none';
+        });
+
+        // --- Lighting ---
+        // A very dim ambient light so things aren't completely pitch black
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.03);
+        scene.add(ambientLight);
+
+        // A flashlight style point light attached to the camera/player
+        const flashlight = new THREE.PointLight(0xfff0dd, 1.5, 15);
+        flashlight.position.set(0, 0, 0);
+        scene.add(flashlight);
+
+        // --- Hallway Generation ---
+        const wallGroup = new THREE.Group();
+        scene.add(wallGroup);
+
+        // Textures & Materials (Procedural brick/concrete style using canvas)
+        function createWallTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 0, 256, 256);
+            // Add some noise/grit
+            for (let i = 0; i < 5000; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? '#111' : '#333';
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const wallTexture = createWallTexture();
+        wallTexture.wrapS = THREE.RepeatWrapping;
+        wallTexture.wrapT = THREE.RepeatWrapping;
+        wallTexture.repeat.set(1, 4);
+
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, map: wallTexture, roughness: 0.8 });
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+        const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+        const segmentLength = 10; // Length of each hallway chunk
+        const totalSegments = 6;  // Number of chunks rendered ahead/behind
+        const hallwayWidth = 3;
+        const hallwayHeight = 3.5;
+
+        // Function to create a single 10-meter block of hallway
+        function createHallwaySegment(zOffset) {
+            const segment = new THREE.Group();
+
+            // Left Wall
+            const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
+            leftWall.position.set(-hallwayWidth/2, hallwayHeight/2, 0);
+            leftWall.rotation.y = Math.PI / 2;
+            segment.add(leftWall);
+
+            // Right Wall
+            const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
+            rightWall.position.set(hallwayWidth/2, hallwayHeight/2, 0);
+            rightWall.rotation.y = -Math.PI / 2;
+            segment.add(rightWall);
+
+            // Floor
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), floorMaterial);
+            floor.position.set(0, 0, 0);
+            floor.rotation.x = -Math.PI / 2;
+            segment.add(floor);
+
+            // Ceiling
+            const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), ceilingMaterial);
+            ceiling.position.set(0, hallwayHeight, 0);
+            ceiling.rotation.x = Math.PI / 2;
+            segment.add(ceiling);
+
+            segment.position.z = zOffset;
+            return segment;
+        }
+
+        // Initially populate the hallway segments
+        const segments = [];
+        for (let i = 0; i < totalSegments; i++) {
+            // Spawn segments stretching out ahead of the start point (negative Z)
+            const seg = createHallwaySegment(-i * segmentLength);
+            wallGroup.add(seg);
+            segments.push(seg);
+        }
+
+        // --- VR Movement / Controls ---
+        // Creates an invisible rig to move the player through space
+        const userRig = new THREE.Group();
+        userRig.add(camera);
+        scene.add(userRig);
+
+        const moveSpeed = 0.03;
+
+        // --- Main Animation Loop ---
+        renderer.setAnimationLoop(() => {
+            
+            // 1. Automatic forward movement (Walking down the hallway)
+            userRig.position.z -= moveSpeed;
+
+            // 2. Lock the flashlight to the player's headset position
+            flashlight.position.copy(camera.position);
+            flashlight.position.add(userRig.position); 
+
+            // 3. The Infinite Loop Logic
+            // If the player passes the end of the first segment, cycle it to the far front
+            segments.forEach((seg) => {
+                // If a segment is now completely behind the player's view distance
+                if (seg.position.z > userRig.position.z + segmentLength) {
+                    // Find the furthest segment currently generated
+                    let furthestZ = userRig.position.z;
+                    segments.forEach(s => { if (s.position.z < furthestZ) furthestZ = s.position.z; });
+                    
+                    // Move this trailing segment to the very front of the line
+                    seg.position.z = furthestZ - segmentLength;
+                }
+            });
+
+            // Render the frame
+            renderer.render(scene, camera);
+        });
+
+        // --- Handle Window Resizing ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
