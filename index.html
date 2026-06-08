@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>VR Art Studio</title>
+    <title>VR Art Studio - Quest Fixed</title>
     <style>
         body {
             margin: 0;
@@ -22,36 +22,24 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #2c2c2c 0%, #111 100%);
+            background: #1a1a1a;
             color: white;
             z-index: 10;
-            transition: opacity 0.5s ease;
         }
         h1 { 
-            font-size: 2.5rem;
-            margin-bottom: 10px; 
+            font-size: 2rem;
+            margin-bottom: 20px; 
             letter-spacing: 4px;
-            font-weight: 300;
-        }
-        p {
-            color: #aaa;
-            margin-bottom: 30px;
         }
         #vr-button {
             padding: 16px 40px;
             font-size: 1rem;
             font-weight: 600;
-            background-color: transparent;
-            color: #fff;
-            border: 2px solid #ffffff;
+            background-color: #fff;
+            color: #000;
+            border: none;
             cursor: pointer;
             letter-spacing: 2px;
-            transition: all 0.3s ease;
-        }
-        #vr-button:hover {
-            background-color: #ffffff;
-            color: #000000;
-            box-shadow: 0 0 20px rgba(255,255,255,0.3);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -59,28 +47,29 @@
 <body>
 
     <div id="overlay">
-        <h1>V R  A R T  S T U D I O</h1>
-        <p>Pick up your brush, select a color, and paint.</p>
-        <button id="vr-button">ENTER STUDIO</button>
+        <h1>VR ART STUDIO</h1>
+        <button id="vr-button">ENTER VR</button>
     </div>
 
     <script>
-        // --- Core Scene & Lighting Setup ---
+        // --- Scene & Renderer Configuration ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1512); // Warm ambient atmosphere
+        scene.background = new THREE.Color(0x14110f);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 1.6, 0); // Default head height
+        camera.position.set(0, 1.6, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
+        
+        // High-end lighting profile to make colors pop and look professional
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMappingExposure = 1.1;
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // --- WebXR Session Management ---
+        // --- WebXR Quest Booter ---
         const vrButton = document.getElementById('vr-button');
         const overlay = document.getElementById('overlay');
 
@@ -91,265 +80,234 @@
                         navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] })
                         .then((session) => {
                             renderer.xr.setSession(session);
-                            overlay.style.opacity = '0';
-                            setTimeout(() => overlay.style.display = 'none', 500);
+                            overlay.style.display = 'none';
                         });
                     });
-                } else { vrButton.textContent = 'VR HEADSET NOT DETECTED'; }
+                } else { vrButton.textContent = 'XR NOT FOUND ON THIS BROWSER'; }
             });
         }
 
-        // --- Procedural Texture Generation for Realism ---
-        function createWoodTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#8B5A2B'; ctx.fillRect(0, 0, 512, 512);
-            ctx.fillStyle = '#5C3A21';
-            for (let i = 0; i < 500; i++) {
-                ctx.fillRect(Math.random() * 512, 0, Math.random() * 2 + 1, 512);
-            }
-            return new THREE.CanvasTexture(canvas);
+        // --- Fast Procedural Texture Engine (No External Image Dependencies) ---
+        function generateStudioTextures() {
+            // Wood Grain for Easel and Table
+            const woodCanvas = document.createElement('canvas');
+            woodCanvas.width = 256; woodCanvas.height = 256;
+            const wCtx = woodCanvas.getContext('2d');
+            wCtx.fillStyle = '#6e4726'; wCtx.fillRect(0, 0, 256, 256);
+            wCtx.fillStyle = '#4a2f17';
+            for(let i=0; i<60; i++) { wCtx.fillRect(Math.random()*256, 0, Math.random()*3+1, 256); }
+            
+            // Studio Floor Planks
+            const floorCanvas = document.createElement('canvas');
+            floorCanvas.width = 512; floorCanvas.height = 512;
+            const fCtx = floorCanvas.getContext('2d');
+            fCtx.fillStyle = '#a18262'; fCtx.fillRect(0, 0, 512, 512);
+            fCtx.fillStyle = '#59432f';
+            for(let i=0; i<512; i+=64) { fCtx.fillRect(i, 0, 2, 512); } // Plank lines
+
+            const woodTex = new THREE.CanvasTexture(woodCanvas);
+            const floorTex = new THREE.CanvasTexture(floorCanvas);
+            floorTex.wrapS = THREE.RepeatWrapping; floorTex.wrapT = THREE.RepeatWrapping;
+            floorTex.repeat.set(4, 4);
+
+            return { wood: woodTex, floor: floorTex };
         }
+        const studioTextures = generateStudioTextures();
 
-        function createContextures() {
-            const wood = createWoodTexture();
-            wood.wrapS = THREE.RepeatWrapping; wood.wrapT = THREE.RepeatWrapping;
-            return { wood };
-        }
-        const textures = createContextures();
+        // --- Lighting ---
+        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambient);
 
-        // --- Studio Architecture & Lighting Layout ---
-        // Soft Warm Studio Lights
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
+        const spotLight = new THREE.DirectionalLight(0xfff4e0, 1.0);
+        spotLight.position.set(2, 6, 2);
+        scene.add(spotLight);
 
-        const studioLight = new THREE.DirectionalLight(0xfff3e0, 1.2);
-        studioLight.position.set(5, 8, 2);
-        scene.add(studioLight);
-
-        // Room Shell (Walls, Floor, Roof)
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xefefef, roughness: 0.8 });
-        const floorMat = new THREE.MeshStandardMaterial({ map: textures.wood, roughness: 0.4 });
-        floorMat.map.repeat.set(4, 4);
-        const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
-
+        // --- Room Construction ---
         const room = new THREE.Group();
-        const floorGeo = new THREE.PlaneGeometry(10, 10);
-        const floor = new THREE.Mesh(floorGeo, floorMat); floor.rotation.x = -Math.PI / 2; room.add(floor);
-        const roof = new THREE.Mesh(floorGeo, roofMat); roof.position.y = 4; roof.rotation.x = Math.PI / 2; room.add(roof);
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0xd6d1cd, roughness: 0.8 }); // Clean off-white walls
+        const floorMat = new THREE.MeshStandardMaterial({ map: studioTextures.floor, roughness: 0.5 });
+        const roofMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
 
-        // Back Wall
-        const wallGeo = new THREE.PlaneGeometry(10, 4);
-        const backWall = new THREE.Mesh(wallGeo, wallMat); backWall.position.set(0, 2, -5); room.add(backWall);
-        // Left & Right Walls
-        const leftWall = new THREE.Mesh(wallGeo, wallMat); leftWall.position.set(-5, 2, 0); leftWall.rotation.y = Math.PI / 2; room.add(leftWall);
-        const rightWall = new THREE.Mesh(wallGeo, wallMat); rightWall.position.set(5, 2, 0); rightWall.rotation.y = -Math.PI / 2; room.add(rightWall);
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), floorMat); floor.rotation.x = -Math.PI/2; room.add(floor);
+        const roof = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), roofMat); roof.position.y = 3.5; roof.rotation.x = Math.PI/2; room.add(roof);
+        
+        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.5), wallMat); backWall.position.set(0, 1.75, -4); room.add(backWall);
+        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.5), wallMat); leftWall.position.set(-4, 1.75, 0); leftWall.rotation.y = Math.PI/2; room.add(leftWall);
+        const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 3.5), wallMat); rightWall.position.set(4, 1.75, 0); rightWall.rotation.y = -Math.PI/2; room.add(rightWall);
         scene.add(room);
 
-        // --- Dynamic Painting Paper Construction ---
+        // --- Drawing Canvas (Paper Setup) ---
         const drawCanvas = document.createElement('canvas');
         drawCanvas.width = 1024; drawCanvas.height = 1024;
         const drawCtx = drawCanvas.getContext('2d');
-        drawCtx.fillStyle = '#ffffff'; // Clean white sheet
-        drawCtx.fillRect(0, 0, 1024, 1024);
+        drawCtx.fillStyle = '#ffffff'; drawCtx.fillRect(0, 0, 1024, 1024);
 
         const canvasTexture = new THREE.CanvasTexture(drawCanvas);
-        const canvasMaterial = new THREE.MeshStandardMaterial({ map: canvasTexture, roughness: 0.95 });
+        const canvasMaterial = new THREE.MeshStandardMaterial({ map: canvasTexture, roughness: 0.9 });
 
-        // --- Building the Easel & Art Supplies Table ---
-        const easelGroup = new THREE.Group();
-        easelGroup.position.set(0, 0, -1.5); // Placed comfortably in front of player spawn
+        // --- Easel Board & Paper Stand ---
+        const easel = new THREE.Group();
+        easel.position.set(0, 0, -1.3);
 
-        // Wooden Framing Components
-        const easelMat = new THREE.MeshStandardMaterial({ map: textures.wood, roughness: 0.6 });
-        const legGeo = new THREE.BoxGeometry(0.06, 2.2, 0.06);
-        const leftLeg = new THREE.Mesh(legGeo, easelMat); leftLeg.position.set(-0.4, 1.1, 0); leftLeg.rotation.z = -0.1;
-        const rightLeg = new THREE.Mesh(legGeo, easelMat); rightLeg.position.set(0.4, 1.1, 0); rightLeg.rotation.z = 0.1;
-        const backLeg = new THREE.Mesh(legGeo, easelMat); backLeg.position.set(0, 1.1, -0.4); backLeg.rotation.x = -0.2;
-        easelGroup.add(leftLeg, rightLeg, backLeg);
+        const woodMat = new THREE.MeshStandardMaterial({ map: studioTextures.wood, roughness: 0.6 });
+        
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.04), woodMat);
+        frame.position.set(0, 1.4, 0);
+        frame.rotation.x = -0.05;
+        easel.add(frame);
 
-        // The drawing board supporting the paper
-        const boardGeo = new THREE.BoxGeometry(1.2, 0.9, 0.04);
-        const board = new THREE.Mesh(boardGeo, easelMat);
-        board.position.set(0, 1.4, -0.05);
-        board.rotation.x = -0.05; // Slanted slightly back like a real easel
-        easelGroup.add(board);
+        const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.75), canvasMaterial);
+        paper.position.set(0, 1.4, 0.021);
+        paper.rotation.x = -0.05;
+        easel.add(paper);
 
-        // The actual Paper Sheet you draw on
-        const paperGeo = new THREE.PlaneGeometry(1.1, 0.8);
-        const paperMesh = new THREE.Mesh(paperGeo, canvasMaterial);
-        paperMesh.position.set(0, 1.4, -0.028);
-        paperMesh.rotation.x = -0.05;
-        easelGroup.add(paperMesh);
-        scene.add(easelGroup);
+        // Legs
+        const legG = new THREE.BoxGeometry(0.04, 2.0, 0.04);
+        const lLeg = new THREE.Mesh(legG, woodMat); lLeg.position.set(-0.35, 1.0, -0.05); lLeg.rotation.z = -0.08; easel.add(lLeg);
+        const rLeg = new THREE.Mesh(legG, woodMat); rLeg.position.set(0.35, 1.0, -0.05); rLeg.rotation.z = 0.08; easel.add(rLeg);
+        scene.add(easel);
 
-        // Supply Table Construction
-        const tableGroup = new THREE.Group();
-        tableGroup.position.set(0.8, 0, -1.2); // Positioned conveniently to the right
-        const topGeo = new THREE.BoxGeometry(0.8, 0.05, 1.2);
-        const tableTop = new THREE.Mesh(topGeo, easelMat); tableTop.position.y = 0.75; tableGroup.add(tableTop);
-        const legG = new THREE.BoxGeometry(0.05, 0.75, 0.05);
-        for(let x of [-0.35, 0.35]) {
-            for(let z of [-0.5, 0.5]) {
-                const leg = new THREE.Mesh(legG, easelMat); leg.position.set(x, 0.375, z); tableGroup.add(leg);
-            }
-        }
-        scene.add(tableGroup);
+        // --- Supplies Table ---
+        const table = new THREE.Group();
+        table.position.set(0.75, 0, -1.0);
+        const topMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.9), woodMat);
+        topMesh.position.y = 0.8;
+        table.add(topMesh);
+        scene.add(table);
 
-        // --- Interactive Palettes & Brush Tools Configuration ---
-        const paintOptions = [
-            { color: 0xff0000, hex: '#ff0000', pos: new THREE.Vector3(-0.2, 0.79, -0.3) }, // Red
-            { color: 0x00ff00, hex: '#00ff00', pos: new THREE.Vector3(0.0, 0.79, -0.3) },  // Green
-            { color: 0x0000ff, hex: '#0000ff', pos: new THREE.Vector3(0.2, 0.79, -0.3) },  // Blue
-            { color: 0xffcc00, hex: '#ffcc00', pos: new THREE.Vector3(-0.2, 0.79, -0.1) }, // Yellow
-            { color: 0x000000, hex: '#000000', pos: new THREE.Vector3(0.0, 0.79, -0.1) },  // Black
-            { color: 0xffffff, hex: '#ffffff', pos: new THREE.Vector3(0.2, 0.79, -0.1) }   // White
+        // --- Color Selection Trays ---
+        const colors = [
+            { hex: '#ff0000', rgb: 0xff0000, pos: new THREE.Vector3(-0.15, 0.82, -0.2) }, // Red
+            { hex: '#00ff00', rgb: 0x00ff00, pos: new THREE.Vector3(0.0, 0.82, -0.2) },  // Green
+            { hex: '#0000ff', rgb: 0x0000ff, pos: new THREE.Vector3(0.15, 0.82, -0.2) }, // Blue
+            { hex: '#ffff00', rgb: 0xffff00, pos: new THREE.Vector3(-0.15, 0.82, 0.0) }, // Yellow
+            { hex: '#000000', rgb: 0x000000, pos: new THREE.Vector3(0.0, 0.82, 0.0) },   // Black
+            { hex: '#ffffff', rgb: 0xffffff, pos: new THREE.Vector3(0.15, 0.82, 0.0) }   // White
         ];
 
-        const targetTargets = []; // Collision targets array
+        const interactables = [];
 
-        paintOptions.forEach(opt => {
-            const trayGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.02, 16);
-            const trayMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
-            const tray = new THREE.Mesh(trayGeo, trayMat);
-            tray.position.copy(opt.pos);
-            tableGroup.add(tray);
-
-            const fluidGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.015, 16);
-            const fluidMat = new THREE.MeshStandardMaterial({ color: opt.color, roughness: 0.2 });
-            const fluid = new THREE.Mesh(fluidGeo, fluidMat);
-            fluid.position.copy(opt.pos).add(new THREE.Vector3(0, 0.005, 0));
-            fluid.userData = { type: 'color', val: opt.hex };
-            tableGroup.add(fluid);
-            targetTargets.push(fluid);
+        colors.forEach(c => {
+            const paintGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.015, 16);
+            const paintMat = new THREE.MeshStandardMaterial({ color: c.rgb, roughness: 0.3 });
+            const paintMesh = new THREE.Mesh(paintGeo, paintMat);
+            paintMesh.position.copy(c.pos);
+            paintMesh.userData = { type: 'color', value: c.hex };
+            table.add(paintMesh);
+            interactables.push(paintMesh);
         });
 
-        // Brush Size Selector Pots
-        const sizeOptions = [
-            { radius: 6, label: 'Small', pos: new THREE.Vector3(-0.15, 0.79, 0.2) },
-            { radius: 16, label: 'Medium', pos: new THREE.Vector3(0.0, 0.79, 0.2) },
-            { radius: 32, label: 'Large', pos: new THREE.Vector3(0.15, 0.79, 0.2) }
+        // Brush Sizes Pots
+        const sizes = [
+            { value: 8, radius: 0.01, pos: new THREE.Vector3(-0.1, 0.82, 0.25) },   // Small
+            { value: 24, radius: 0.02, pos: new THREE.Vector3(0.1, 0.82, 0.25) }    // Large
         ];
 
-        sizeOptions.forEach(opt => {
-            const potGeo = new THREE.BoxGeometry(0.08, 0.04, 0.08);
-            const potMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.4 });
-            const pot = new THREE.Mesh(potGeo, potMat);
-            pot.position.copy(opt.pos);
-            pot.userData = { type: 'size', val: opt.radius };
-            tableGroup.add(pot);
-            targetTargets.push(pot);
+        sizes.forEach(s => {
+            const pot = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.06), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            pot.position.copy(s.pos);
+            pot.userData = { type: 'size', value: s.value };
+            table.add(pot);
+            interactables.push(pot);
 
-            // Miniature display labels inside pots
-            const dotGeo = new THREE.CylinderGeometry(opt.radius/1000 + 0.002, opt.radius/1000 + 0.002, 0.042, 8);
-            const dotMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-            const dot = new THREE.Mesh(dotGeo, dotMat);
-            dot.position.copy(opt.pos);
-            tableGroup.add(dot);
+            // Size Indicator Dot
+            const dot = new THREE.Mesh(new THREE.CylinderGeometry(s.radius, s.radius, 0.022, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            dot.position.copy(s.pos);
+            table.add(dot);
         });
 
-        // --- Active Painting System State ---
-        let currentColor = '#ff0000';
-        let currentSize = 16;
-        let isDrawing = false;
-        let lastX = null; let lastY = null;
+        // --- Global Painting Variables ---
+        let activeColor = '#ff0000';
+        let activeSize = 16;
+        let drawing = false;
+        let lastX = null, lastY = null;
 
-        // --- VR Controllers & Physical Brushes Tracking ---
+        // --- Quest Hand / Controller Tracking Setup ---
+        const userRig = new THREE.Group();
+        userRig.add(camera);
+        scene.add(userRig);
+
         const raycaster = new THREE.Raycaster();
-        const controllerRight = renderer.xr.getController(1); // Right hand tool hand
-        scene.add(controllerRight);
+        const rightController = renderer.xr.getController(1); // Right Hand
+        userRig.add(rightController);
 
-        // Visual Pointer Ray Line
-        const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-3)]);
-        const laserMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
-        const laser = new THREE.Line(laserGeo, laserMat);
-        controllerRight.add(laser);
+        // Physical Brush Mesh Object attached to your controller orientation
+        const brushMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.2), woodMat);
+        brushMesh.rotateX(Math.PI/2);
+        brushMesh.position.set(0, 0, -0.05);
+        rightController.add(brushMesh);
 
-        // Model physical Artist Brush Mesh attachment
-        const brushHandleGeo = new THREE.CylinderGeometry(0.008, 0.005, 0.25);
-        brushHandleGeo.rotateX(Math.PI / 2);
-        const brushHandle = new THREE.Mesh(brushHandleGeo, easelMat);
-        brushHandle.position.set(0, 0, -0.08);
-        controllerRight.add(brushHandle);
-
-        const tipGeo = new THREE.CylinderGeometry(0.001, 0.008, 0.03);
-        tipGeo.rotateX(Math.PI / 2);
         const tipMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const brushTip = new THREE.Mesh(tipGeo, tipMat);
-        brushTip.position.set(0, 0, -0.21); // Extends straight out to act as pointer tip
-        controllerRight.add(brushTip);
+        const brushTip = new THREE.Mesh(new THREE.CylinderGeometry(0.001, 0.006, 0.02), tipMat);
+        brushTip.rotateX(Math.PI/2);
+        brushTip.position.set(0, 0, -0.15);
+        rightController.add(brushTip);
 
-        // Standard WebXR Controller Event Binding hooks
-        controllerRight.addEventListener('selectstart', () => { isDrawing = true; });
-        controllerRight.addEventListener('selectend', () => { 
-            isDrawing = false; 
-            lastX = null; lastY = null; // Break continuous line sequence
-        });
+        // Visual Interaction Pointer Beam
+        const beamGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-2)]);
+        const beamMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+        const pointerLine = new THREE.Line(beamGeo, beamMat);
+        rightController.add(pointerLine);
 
-        // --- Game Tick Execution Frame Loop ---
+        // Right Controller Input Bindings
+        rightController.addEventListener('selectstart', () => { drawing = true; });
+        rightController.addEventListener('selectend', () => { drawing = false; lastX = null; lastY = null; });
+
+        // --- Core Application Loop ---
         renderer.setAnimationLoop(() => {
-            // Update Dynamic Laser & Raycaster Tracking Vectors
-            const tempMatrix = new THREE.Matrix4();
-            tempMatrix.identity().extractRotation(controllerRight.matrixWorld);
+            const rotMatrix = new THREE.Matrix4();
+            rotMatrix.identity().extractRotation(rightController.matrixWorld);
             
-            raycaster.ray.origin.setFromMatrixPosition(controllerRight.matrixWorld);
-            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+            raycaster.ray.origin.setFromMatrixPosition(rightController.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotMatrix);
 
-            // Check if user is pointing at the Easel Canvas Plane
-            const canvasIntersects = raycaster.intersectObject(paperMesh);
+            // Intersection Tests
+            const boardHits = raycaster.intersectObject(paper);
 
-            if (canvasIntersects.length > 0) {
-                const hit = canvasIntersects[0];
+            if (boardHits.length > 0) {
+                const hit = boardHits[0];
                 const uv = hit.uv;
+                pointerLine.scale.z = hit.distance / 2; // Snap line length to board surface
 
-                // Map 3D UV space coordinates to 2D HTML Canvas pixels
-                const x = uv.x * drawCanvas.width;
-                const y = (1 - uv.y) * drawCanvas.height;
+                const canvasX = uv.x * drawCanvas.width;
+                const canvasY = (1 - uv.y) * drawCanvas.height;
 
-                // Adjust pointer line to dynamically collapse right at the contact point
-                laser.scale.z = hit.distance / 3;
-
-                if (isDrawing) {
-                    drawCtx.strokeStyle = currentColor;
-                    drawCtx.fillStyle = currentColor;
+                if (drawing) {
+                    drawCtx.strokeStyle = activeColor;
+                    drawCtx.fillStyle = activeColor;
                     drawCtx.lineCap = 'round';
                     drawCtx.lineJoin = 'round';
-                    drawCtx.lineWidth = currentSize;
+                    drawCtx.lineWidth = activeSize;
 
                     drawCtx.beginPath();
                     if (lastX !== null && lastY !== null) {
                         drawCtx.moveTo(lastX, lastY);
-                        drawCtx.lineTo(x, y);
+                        drawCtx.lineTo(canvasX, canvasY);
                         drawCtx.stroke();
                     } else {
-                        // Single point tap fallback
-                        drawCtx.arc(x, y, currentSize / 2, 0, Math.PI * 2);
+                        drawCtx.arc(canvasX, canvasY, activeSize/2, 0, Math.PI*2);
                         drawCtx.fill();
                     }
                     drawCtx.closePath();
 
-                    lastX = x; lastY = y;
-                    canvasTexture.needsUpdate = true; // Refresh GPU Texture Map
+                    lastX = canvasX; lastY = canvasY;
+                    canvasTexture.needsUpdate = true;
                 }
             } else {
-                // If not pointing at canvas, restore full pointer distance metric
-                laser.scale.z = 1;
+                pointerLine.scale.z = 1;
                 lastX = null; lastY = null;
 
-                // Check if user is interacting with table supply pots
-                if (isDrawing) {
-                    const supplyIntersects = raycaster.intersectObjects(targetTargets);
-                    if (supplyIntersects.length > 0) {
-                        const hitData = supplyIntersects[0].object.userData;
-                        
-                        if (hitData.type === 'color') {
-                            currentColor = hitData.val;
-                            tipMat.color.set(hitData.val); // Physically dye brush bristles
-                        } else if (hitData.type === 'size') {
-                            currentSize = hitData.val;
+                if (drawing) {
+                    const supplyHits = raycaster.intersectObjects(interactables);
+                    if (supplyHits.length > 0) {
+                        const targetData = supplyHits[0].object.userData;
+                        if (targetData.type === 'color') {
+                            activeColor = targetData.value;
+                            tipMat.color.set(targetData.value); // Dip brush bristle color visually
+                        } else if (targetData.type === 'size') {
+                            activeSize = targetData.value;
                         }
-                        isDrawing = false; // Prevent click spamming continuous state flags
+                        drawing = false; // Reset toggle flag to clear accidental holds
                     }
                 }
             }
@@ -357,7 +315,6 @@
             renderer.render(scene, camera);
         });
 
-        // Window configuration updates
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
