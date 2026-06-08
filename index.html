@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #050505;
+            background-color: #010101;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         #overlay {
@@ -22,7 +22,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: radial-gradient(circle, #1a1a1a 0%, #050505 100%);
+            background: radial-gradient(circle, #151515 0%, #010101 100%);
             color: white;
             z-index: 10;
             transition: opacity 0.5s ease;
@@ -32,7 +32,6 @@
             margin-bottom: 20px; 
             letter-spacing: 12px;
             color: #ffffff;
-            text-shadow: 0 0 20px rgba(255,255,255,0.1);
         }
         #vr-button {
             padding: 16px 36px;
@@ -41,15 +40,13 @@
             background-color: transparent;
             color: #fff;
             border: 2px solid #ffffff;
-            border-radius: 0px;
             cursor: pointer;
             letter-spacing: 3px;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s ease;
         }
         #vr-button:hover {
             background-color: #ffffff;
             color: #000000;
-            box-shadow: 0 0 30px rgba(255,255,255,0.4);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -58,15 +55,15 @@
 
     <div id="overlay">
         <h1>H A L L S</h1>
-        <button id="vr-button">INITIALIZING...</button>
+        <button id="vr-button">LOADING VR...</button>
     </div>
 
     <script>
-        // --- Core Scene Configuration ---
+        // --- Core Scene & Renderer Configuration ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020202);
-        // Clean high-density fog to swallow the corridor seamlessly into darkness
-        scene.fog = new THREE.FogExp2(0x020202, 0.22);
+        scene.background = new THREE.Color(0x010101);
+        // Deep black fog to swallow up the endless corridor seamlessly
+        scene.fog = new THREE.FogExp2(0x010101, 0.28);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
@@ -74,25 +71,25 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.xr.enabled = true;
         
-        // Professional rendering settings for realistic textures and lighting
+        // High-end tone mapping to render clean colors and deep shadows accurately
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        renderer.toneMappingExposure = 1.0;
         renderer.outputEncoding = THREE.sRGBEncoding;
         document.body.appendChild(renderer.domElement);
 
-        // --- VR Rig System ---
+        // --- VR Player Rig ---
         const userRig = new THREE.Group();
         userRig.add(camera);
         scene.add(userRig);
 
-        // --- WebXR Session Management ---
+        // --- WebXR Prompt System ---
         const vrButton = document.getElementById('vr-button');
         const overlay = document.getElementById('overlay');
 
         if (navigator.xr) {
             navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
                 if (supported) {
-                    vrButton.textContent = 'ENTER VR ASSET';
+                    vrButton.textContent = 'ENTER VR';
                     vrButton.addEventListener('click', () => {
                         navigator.xr.requestSession('immersive-vr', {
                             requiredFeatures: ['local-floor']
@@ -103,83 +100,91 @@
                         });
                     });
                 } else {
-                    vrButton.textContent = 'VR HEADSET NOT FOUND';
+                    vrButton.textContent = 'VR HEADSET NOT DETECTED';
                 }
             });
         } else {
             vrButton.textContent = 'WEBXR NOT SUPPORTED';
         }
 
-        // --- Texture Loading & Optimization ---
+        // --- Texture Loading & Polishing (Using Your Uploads) ---
         const textureLoader = new THREE.TextureLoader();
-        const ventTex = textureLoader.load('https://i.postimg.cc/rwxxRpCn/Vent-Tex.png');
-        const roofTex = textureLoader.load('https://i.postimg.cc/MTFvFkmq/Tile3.png');
-        const floorTex = textureLoader.load('https://i.postimg.cc/dtdjrnJ0/Backing.png');
-        const carpetTex = textureLoader.load('https://i.postimg.cc/pd0fR6BW/Brown-Carpet.png');
+        const wallTex = textureLoader.load('image_89e9a5.jpg');       // Clean white/grey wall
+        const floorTex = textureLoader.load('image_89e6fe.jpg');      // Light grey/white floor boards
+        const carpetTex = textureLoader.load('image_89e6e1.jpg');     // Alternate carpet asset
+        const roofTex = textureLoader.load('https://m.media-amazon.com/images/I/81hWe0R+71L._AC_UL320_.jpg'); // Tiled roof
 
-        [roofTex, floorTex, carpetTex].forEach(t => {
+        // Apply texture repeating parameters for pristine rendering scale
+        [wallTex, floorTex, carpetTex, roofTex].forEach(t => {
             t.wrapS = THREE.RepeatWrapping;
             t.wrapT = THREE.RepeatWrapping;
             t.anisotropy = renderer.capabilities.getMaxAnisotropy();
         });
-        roofTex.repeat.set(1, 4);
+        wallTex.repeat.set(2, 1);
         floorTex.repeat.set(1, 4);
         carpetTex.repeat.set(1, 4);
+        roofTex.repeat.set(2, 4);
 
-        // --- Professional Material Architecture ---
-        // Clean, matte light-grey/white walls
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.6, metalness: 0.02 });
-        const trimMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }); // Baseboards
-        const ventMaterial = new THREE.MeshStandardMaterial({ map: ventTex, transparent: true, roughness: 0.5 });
-        const roofMaterial = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.7 });
-        const floorMaterial = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.5 });
-        const carpetMaterial = new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.9 });
-        const lightFixtureMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const lightGlassMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        // --- Materials System ---
+        const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.5, metalness: 0.05 });
+        const pillarMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4 }); // Matching clean light columns
+        const roofMaterial = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.6 });
+        const floorMaterial = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.4 });
+        const carpetMaterial = new THREE.MeshStandardMaterial({ map: carpetTex, roughness: 0.85 });
+        const fixtureMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const glassMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-        // --- Environment Lighting ---
-        const ambientLight = new THREE.AmbientLight(0x05050a, 0.15); 
+        // --- Lights Setup ---
+        const ambientLight = new THREE.AmbientLight(0x0a0a0a, 0.05); 
         scene.add(ambientLight);
 
-        // Subtle face-mounted flashlight for local visibility
-        const flashlight = new THREE.SpotLight(0xfff8ee, 4, 10, Math.PI / 4, 0.5, 1);
+        // Flashlight: Intense cone beam matching your reference request
+        const flashlight = new THREE.SpotLight(0xfffbe3, 12, 18, Math.PI / 5, 0.4, 1.2);
         scene.add(flashlight);
         scene.add(flashlight.target);
 
-        // --- Modular Segment Generation ---
+        // --- Procedural Generation Setup (Pillars, Lights & Core Layout) ---
         const segmentLength = 10;
-        const totalSegments = 8; // Increased segment count to blend perfectly into distant fog
-        const hallwayWidth = 2.4;
+        const totalSegments = 8; 
+        const hallwayWidth = 2.8;
         const hallwayHeight = 3.0;
         const segments = [];
 
         function createHallwaySegment(zOffset) {
             const segment = new THREE.Group();
 
-            // Left & Right Structural Walls
+            // Left Wall
             const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
             leftWall.position.set(-hallwayWidth/2, hallwayHeight/2, 0);
             leftWall.rotation.y = Math.PI / 2;
             segment.add(leftWall);
 
+            // Right Wall
             const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(segmentLength, hallwayHeight), wallMaterial);
             rightWall.position.set(hallwayWidth/2, hallwayHeight/2, 0);
             rightWall.rotation.y = -Math.PI / 2;
             segment.add(rightWall);
 
-            // Baseboards / Trims (Adds realistic depth to walls)
-            const trimGeo = new THREE.BoxGeometry(segmentLength, 0.12, 0.02);
-            const leftTrim = new THREE.Mesh(trimGeo, trimMaterial);
-            leftTrim.position.set(-hallwayWidth/2 + 0.01, 0.06, 0);
-            leftTrim.rotation.y = Math.PI / 2;
-            segment.add(leftTrim);
+            // Clean Columns/Pillars (Spaced at the start and middle of each segment like screenshots)
+            const pillarGeo = new THREE.BoxGeometry(0.25, hallwayHeight, 0.4);
+            
+            const leftPillar1 = new THREE.Mesh(pillarGeo, pillarMaterial);
+            leftPillar1.position.set(-hallwayWidth/2 + 0.12, hallwayHeight/2, -segmentLength/2);
+            segment.add(leftPillar1);
 
-            const rightTrim = new THREE.Mesh(trimGeo, trimMaterial);
-            rightTrim.position.set(hallwayWidth/2 - 0.01, 0.06, 0);
-            rightTrim.rotation.y = -Math.PI / 2;
-            segment.add(rightTrim);
+            const rightPillar1 = new THREE.Mesh(pillarGeo, pillarMaterial);
+            rightPillar1.position.set(hallwayWidth/2 - 0.12, hallwayHeight/2, -segmentLength/2);
+            segment.add(rightPillar1);
 
-            // Ceiling (Roof Tiles)
+            const leftPillar2 = new THREE.Mesh(pillarGeo, pillarMaterial);
+            leftPillar2.position.set(-hallwayWidth/2 + 0.12, hallwayHeight/2, segmentLength/2);
+            segment.add(leftPillar2);
+
+            const rightPillar2 = new THREE.Mesh(pillarGeo, pillarMaterial);
+            rightPillar2.position.set(hallwayWidth/2 - 0.12, hallwayHeight/2, segmentLength/2);
+            segment.add(rightPillar2);
+
+            // Ceiling (Drop tiles mapping)
             const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(hallwayWidth, segmentLength), roofMaterial);
             ceiling.position.set(0, hallwayHeight, 0);
             ceiling.rotation.x = Math.PI / 2;
@@ -191,35 +196,26 @@
             floor.rotation.x = -Math.PI / 2;
             segment.add(floor);
 
-            // Procedural Wall Vents
-            if (Math.random() > 0.5) {
-                const vent = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), ventMaterial);
-                const side = Math.random() > 0.5 ? 1 : -1;
-                vent.position.set((hallwayWidth/2 - 0.005) * side, hallwayHeight * 0.6, (Math.random() - 0.5) * 4);
-                vent.rotation.y = side === 1 ? -Math.PI / 2 : Math.PI / 2;
-                segment.add(vent);
-            }
-
-            // Localized Ceiling Light Fixture per segment
+            // Fluorescent Linear Ceiling Fixture (Office style)
             const fixture = new THREE.Group();
-            const casing = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 2), lightFixtureMat);
-            const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 1.9), lightGlassMat);
-            casing.position.set(0, hallwayHeight - 0.025, 0);
-            bulb.position.set(0, hallwayHeight - 0.05, 0);
+            const casing = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 3.5), fixtureMat);
+            const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.01, 3.4), glassMat);
+            casing.position.set(0, hallwayHeight - 0.02, 0);
+            bulb.position.set(0, hallwayHeight - 0.04, 0);
             fixture.add(casing, bulb);
 
-            // Segment Specific Point Light
-            const pLight = new THREE.PointLight(0xfff6e9, 5, 8, 1.5);
-            pLight.position.set(0, hallwayHeight - 0.1, 0);
-            fixture.add(pLight);
+            // Overhead Point Light component
+            const overheadLight = new THREE.PointLight(0xfff6ed, 4, 9, 1.4);
+            overheadLight.position.set(0, hallwayHeight - 0.1, 0);
+            fixture.add(overheadLight);
             segment.add(fixture);
 
-            // Store custom reference metadata for runtime modifiers
+            // Cache data handles for independent runtime updates
             segment.userData = {
                 floorMesh: floor,
-                pointLight: pLight,
+                overheadLight: overheadLight,
                 bulbMesh: bulb,
-                flickerTimer: Math.random() * 4,
+                flickerTimer: Math.random() * 5,
                 isFlickering: false
             };
 
@@ -227,19 +223,19 @@
             return segment;
         }
 
-        // Initialize Generation Track
+        // Initialize Corridor Array Track
         for (let i = 0; i < totalSegments; i++) {
             const seg = createHallwaySegment(-i * segmentLength);
             scene.add(seg);
             segments.push(seg);
         }
 
-        // --- High-Fidelity VR Controller Input Parser ---
-        const moveSpeed = 2.0; 
+        // --- High-Performance VR Locomotion (Joystick Mapping) ---
+        const moveSpeed = 1.8; 
         const clock = new THREE.Clock();
         let canSnapTurn = true;
 
-        function handleLocomotion(delta) {
+        function handleVRMovement(delta) {
             const session = renderer.xr.getSession();
             if (!session) return;
 
@@ -248,32 +244,32 @@
                 const axes = source.gamepad.axes;
                 if (axes.length < 2) continue;
 
-                // Detect true WebXR standard mapping indexes dynamically
-                const hAxis = axes.length > 2 ? axes[2] : axes[0]; // Horizontal Axis
-                const vAxis = axes.length > 2 ? axes[3] : axes[1]; // Vertical Axis
+                // Normalize standard index mappings for standard VR controllers
+                const xJoy = axes[0]; 
+                const yJoy = axes[1]; 
 
-                // LEFT HAND: Smooth Movement
+                // LEFT CONTROLLER: Smooth Walk & Strafe
                 if (source.handedness === 'left') {
-                    if (Math.abs(hAxis) > 0.15 || Math.abs(vAxis) > 0.15) {
+                    if (Math.abs(xJoy) > 0.12 || Math.abs(yJoy) > 0.12) {
                         const direction = new THREE.Vector3();
                         camera.getWorldDirection(direction);
-                        direction.y = 0;
+                        direction.y = 0; // Absolute ground lock
                         direction.normalize();
 
                         const side = new THREE.Vector3();
                         side.crossVectors(direction, camera.up).normalize();
 
-                        userRig.position.addScaledVector(direction, -vAxis * moveSpeed * delta);
-                        userRig.position.addScaledVector(side, hAxis * moveSpeed * delta);
+                        userRig.position.addScaledVector(direction, -yJoy * moveSpeed * delta);
+                        userRig.position.addScaledVector(side, xJoy * moveSpeed * delta);
                     }
                 }
 
-                // RIGHT HAND: Snap Turning (Prevents VR Motion Sickness)
+                // RIGHT CONTROLLER: Cinematic Snap Turning
                 if (source.handedness === 'right') {
-                    if (Math.abs(hAxis) > 0.7) {
+                    if (Math.abs(xJoy) > 0.7) {
                         if (canSnapTurn) {
-                            const angle = hAxis > 0 ? -Math.PI / 4 : Math.PI / 4;
-                            userRig.rotateY(angle);
+                            const turnAngle = xJoy > 0 ? -Math.PI / 4 : Math.PI / 4;
+                            userRig.rotateY(turnAngle);
                             canSnapTurn = false;
                         }
                     } else {
@@ -283,77 +279,75 @@
             }
         }
 
-        // --- Dynamic Segment Shading & Independent Flickering ---
-        function updateSegmentDynamics(delta) {
+        // --- Individual Segment Light Dynamics ---
+        function handleSegmentLights(delta) {
             segments.forEach((seg) => {
                 const data = seg.userData;
                 data.flickerTimer -= delta;
 
                 if (data.flickerTimer <= 0) {
-                    data.isFlickering = Math.random() > 0.85; // 15% chance to experience structural fault
-                    data.flickerTimer = data.isFlickering ? Math.random() * 0.6 : Math.random() * 8 + 4;
+                    data.isFlickering = Math.random() > 0.8; // Random architectural light faults
+                    data.flickerTimer = data.isFlickering ? Math.random() * 0.5 : Math.random() * 10 + 5;
                 }
 
                 if (data.isFlickering) {
-                    const rand = Math.random();
-                    if (rand > 0.8) {
-                        data.pointLight.intensity = 7.0; // Voltage spike
+                    const sample = Math.random();
+                    if (sample > 0.85) {
+                        data.overheadLight.intensity = 6.0; // Overvoltage flare
                         data.bulbMesh.material.color.setHex(0xffffff);
-                    } else if (rand > 0.3) {
-                        data.pointLight.intensity = 0.2; // Dim down drop
-                        data.bulbMesh.material.color.setHex(0x333333);
+                    } else if (sample > 0.4) {
+                        data.overheadLight.intensity = 0.1; // Dim buzz drop
+                        data.bulbMesh.material.color.setHex(0x222222);
                     } else {
-                        data.pointLight.intensity = 0.0; // Complete blackout frame
-                        data.bulbMesh.material.color.setHex(0x111111);
+                        data.overheadLight.intensity = 0.0; // Total drop frame
+                        data.bulbMesh.material.color.setHex(0x050505);
                     }
                 } else {
-                    // Stable current emission
-                    data.pointLight.intensity = 4.5 + (Math.sin(Date.now() * 0.008 + seg.position.z) * 0.2);
+                    // Constant realistic hum
+                    data.overheadLight.intensity = 3.5 + (Math.sin(Date.now() * 0.005 + seg.position.z) * 0.15);
                     data.bulbMesh.material.color.setHex(0xffffff);
                 }
             });
         }
 
-        // --- Infinite Track Recycling Loop ---
-        function recycleSegments() {
+        // --- Seamless Segment Recycling Loop ---
+        function handleInfiniteGeneration() {
             segments.forEach((seg) => {
-                // If segment trails completely behind the active viewpoint plane
                 if (seg.position.z > userRig.position.z + segmentLength) {
                     let furthestZ = userRig.position.z;
                     segments.forEach(s => { if (s.position.z < furthestZ) furthestZ = s.position.z; });
                     
-                    // Reposition forward seamlessly in distance depth
+                    // Displace chunk cleanly ahead inside the fog boundary
                     seg.position.z = furthestZ - segmentLength;
                     
-                    // Procedurally shuffle architectural floor layout on reload loop
-                    const isCarpet = Math.random() > 0.8;
-                    seg.userData.floorMesh.material = isCarpet ? carpetMaterial : floorMaterial;
+                    // Procedurally cycle between wood floorboards or carpet sections on update
+                    const selectCarpet = Math.random() > 0.75;
+                    seg.userData.floorMesh.material = selectCarpet ? carpetMaterial : floorMaterial;
                 }
             });
         }
 
-        // --- Core Application Loop Execution ---
+        // --- Main Render Execution Frame ---
         renderer.setAnimationLoop(() => {
             const delta = clock.getDelta();
 
-            // Run Systems
-            handleLocomotion(delta);
-            updateSegmentDynamics(delta);
-            recycleSegments();
+            handleVRMovement(delta);
+            handleSegmentLights(delta);
+            handleInfiniteGeneration();
 
-            // Flashlight Vector Matrix Tracking
-            const headPos = new THREE.Vector3();
-            camera.getWorldPosition(headPos);
-            flashlight.position.copy(headPos);
+            // Lock Flashlight matrix transform tracking directly over the WebXR camera head tracking
+            const headPosition = new THREE.Vector3();
+            camera.getWorldPosition(headPosition);
+            flashlight.position.copy(headPosition);
 
-            const dirVector = new THREE.Vector3();
-            camera.getWorldDirection(dirVector);
-            flashlight.target.position.copy(headPos).add(dirVector);
+            const lookDirection = new THREE.Vector3();
+            camera.getWorldDirection(lookDirection);
+            flashlight.target.position.copy(headPosition).add(lookDirection);
 
             renderer.render(scene, camera);
         });
 
-        // --- Window Adjustments ---
+        // Track display resolution alterations dynamically
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
